@@ -21,11 +21,9 @@ switch (options[0]) {
 }
 sandbox.setVerbose(verbose);
 console.log("[verbose]", sandbox.verbose())
-//http://127.0.0.1:8828/query-by-partitions?host=dx.berry.ifaceparty.com&sql=select%20group_id,msg_id%20from%20group_msg%20where%20group_id%20in%20(13505,11963)%20and%20create_time%20>%200&mod=128&user=root&password=&charset=utf8mb4_general_ci&database=dianxin_msg
 http.createServer(async function (request, response) {
-  // console.log(request);
-  sandbox.verbose() && console.log("[url]", request.url);
 
+  sandbox.verbose() && console.log("[url]", request.url);
   const urlParse = url.parse(request.url);
   const query = qs.parse(urlParse.query);
   sandbox.verbose() && console.log("[query]\n", query);
