@@ -1,6 +1,6 @@
 # mysql-partitions-proxy
 
-MySQL 数据库分表主键查询微服务
+MySQL 数据库分表主键查询代理
 
 ## 运行环境
 
