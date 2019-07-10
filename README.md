@@ -2,6 +2,12 @@
 
 MySQL 数据库分表主键查询微服务
 
+## 运行环境
+
+因为用到了 `Promise` 和 `async`, `await`
+
+需要 node version 8 +
+
 ## 约束
 
 1. 需要按照单一列主键分表，表名格式为 `{TableName}_{PartitionNumber}`
