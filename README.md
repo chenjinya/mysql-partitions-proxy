@@ -73,7 +73,7 @@ pm2 deploy ecosystem.config.js development
 ##  Url Test
 
 ```
-http://127.0.0.1:8828/query-by-partitions?host=dx.berry.ifaceparty.com&sql=select%20user_id%20from%20user_info%20where%20user_id%20in%20(123,234)&mod=512&user=root&password=&charset=utf8mb4_general_ci&database=user
+http://127.0.0.1:8828/query-by-partitions?host=host_domain&sql=select%20user_id%20from%20user_info%20where%20user_id%20in%20(123,234)&mod=512&user=root&password=&charset=utf8mb4_general_ci&database=user
 ```
 
 ## License

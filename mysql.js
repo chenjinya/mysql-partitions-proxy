@@ -1,10 +1,11 @@
 const mysql = require('mysql');
 const sandbox = require("./sandbox")
-
-let globalConnections = {};
+let poolConnectionCount = 0;
+let CachePoolConnections = {};
 const createPool = function (conf) {
   conf.connectionLimit = 10;
   const pool = mysql.createPool(conf);
+  poolConnectionCount++;
   pool.on("connection", () => {
     sandbox.verbose() && console.log('[pool]pool connection');
   })
@@ -24,9 +25,10 @@ const createPool = function (conf) {
 const setPoolEndTimeout = function (uniqueIndex) {
 
   return setTimeout(() => {
-    globalConnections[uniqueIndex] && globalConnections[uniqueIndex].pool.end();
-    globalConnections[uniqueIndex] = null;
-    sandbox.verbose() && console.info("[pool]end  " + uniqueIndex);
+    CachePoolConnections[uniqueIndex] && CachePoolConnections[uniqueIndex].pool.end();
+    delete CachePoolConnections[uniqueIndex]
+    console.log("[pool]end  index:", uniqueIndex, " connection:", poolConnectionCount);
+    sandbox.memery('pool-end');
   }, 10000)
 }
 const partitionPreviewSqlReg = /select\s+([a-z0-9_,\*`'"]+)\s+from\s+([a-z0-9_`'"]+)\s+where\s+([a-z0-9_`'"]+)\s+(=|in)\s+\((.*)\)\s*(.*)/i;
@@ -38,18 +40,20 @@ module.exports = {
       let sql = conf.sql;
       let mod = conf.mod;
       let pool = null;
-
+      console.info('[sql]', sql);
       const uniqueIndex = conf.user + '@' + conf.database;
       //获取连接池缓存
-      if (globalConnections[uniqueIndex]) {
+      if (CachePoolConnections[uniqueIndex]) {
         sandbox.verbose() && console.info("[pool] reuse " + uniqueIndex);
-        pool = globalConnections[uniqueIndex].pool
-        clearTimeout(globalConnections[uniqueIndex].timeout);
-        globalConnections[uniqueIndex].timeout = setPoolEndTimeout(uniqueIndex)
+        pool = CachePoolConnections[uniqueIndex].pool
+        clearTimeout(CachePoolConnections[uniqueIndex].timeout);
+        //设置为null，防止内存泄漏
+        CachePoolConnections[uniqueIndex].timeout = null;
+        CachePoolConnections[uniqueIndex].timeout = setPoolEndTimeout(uniqueIndex)
       } else {
         sandbox.verbose() && console.info("[pool] new " + uniqueIndex);
         pool = createPool(conf);
-        globalConnections[uniqueIndex] = {
+        CachePoolConnections[uniqueIndex] = {
           pool: pool,
           timeout: setPoolEndTimeout(uniqueIndex)
         }
@@ -91,7 +95,6 @@ module.exports = {
             console.error(err);
             reject(err);
           }
-
           connection.query(_sql, function (err, rows, fields) {
             connection.release()
             if (err) {

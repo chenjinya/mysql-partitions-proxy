@@ -22,8 +22,8 @@ switch (options[0]) {
 sandbox.setVerbose(verbose);
 console.log("[verbose]", sandbox.verbose())
 http.createServer(async function (request, response) {
-
   sandbox.verbose() && console.log("[url]", request.url);
+
   const urlParse = url.parse(request.url);
   const query = qs.parse(urlParse.query);
   sandbox.verbose() && console.log("[query]\n", query);
@@ -50,7 +50,6 @@ http.createServer(async function (request, response) {
   } else {
     notfound(response)
   }
-
 }).listen(httpPort, '127.0.0.1');
 
 const ok = (res, data = null) => {
