@@ -3,6 +3,7 @@ const qs = require("querystring")
 const url = require("url")
 const M = require("./mysql")
 const sandbox = require("./sandbox")
+const heap = require("./heap")
 const httpPort = 8828;
 
 const cmd = process.argv;
@@ -23,11 +24,9 @@ sandbox.setVerbose(verbose);
 console.log("[verbose]", sandbox.verbose())
 http.createServer(async function (request, response) {
   sandbox.verbose() && console.log("[url]", request.url);
-
   const urlParse = url.parse(request.url);
   const query = qs.parse(urlParse.query);
   sandbox.verbose() && console.log("[query]\n", query);
-
   const conf = {
     sql: query.sql,
     mod: query.mod,
@@ -40,7 +39,7 @@ http.createServer(async function (request, response) {
   if (urlParse.pathname == '/query-by-partitions') {
     try {
 
-      let ret = await M.queryByPartitions(conf);
+      const ret = await M.queryByPartitions(conf);
       ok(response, (ret))
     } catch (e) {
       exception(response, e.errno, e.code);
@@ -50,6 +49,8 @@ http.createServer(async function (request, response) {
   } else {
     notfound(response)
   }
+  heap.memery();
+
 }).listen(httpPort, '127.0.0.1');
 
 const ok = (res, data = null) => {

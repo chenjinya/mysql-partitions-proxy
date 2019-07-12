@@ -1,11 +1,12 @@
 const mysql = require('mysql');
 const sandbox = require("./sandbox")
-let poolConnectionCount = 0;
-let CachePoolConnections = {};
+const heap = require("./heap")
+
 const createPool = function (conf) {
-  conf.connectionLimit = 10;
-  const pool = mysql.createPool(conf);
-  poolConnectionCount++;
+  const pool = mysql.createPool({
+    ...conf,
+    connectionLimit: 10
+  });
   pool.on("connection", () => {
     sandbox.verbose() && console.log('[pool]pool connection');
   })
@@ -25,10 +26,17 @@ const createPool = function (conf) {
 const setPoolEndTimeout = function (uniqueIndex) {
 
   return setTimeout(() => {
-    CachePoolConnections[uniqueIndex] && CachePoolConnections[uniqueIndex].pool.end();
-    delete CachePoolConnections[uniqueIndex]
-    console.log("[pool]end  index:", uniqueIndex, " connection:", poolConnectionCount);
-    sandbox.memery('pool-end');
+    let poolCache = sandbox.getCache(uniqueIndex);
+    if (poolCache) {
+      poolCache.pool.end();
+      poolCache.pool = null;
+      poolCache.timeout = null;
+      sandbox.delCache(uniqueIndex)
+      console.log("[pool]end  index:", uniqueIndex);
+    }
+
+    heap.memery('pool-end');
+    //destroy
   }, 10000)
 }
 const partitionPreviewSqlReg = /select\s+([a-z0-9_,\*`'"]+)\s+from\s+([a-z0-9_`'"]+)\s+where\s+([a-z0-9_`'"]+)\s+(=|in)\s+\((.*)\)\s*(.*)/i;
@@ -43,20 +51,25 @@ module.exports = {
       console.info('[sql]', sql);
       const uniqueIndex = conf.user + '@' + conf.database;
       //获取连接池缓存
-      if (CachePoolConnections[uniqueIndex]) {
+      let poolCache = sandbox.getCache(uniqueIndex);
+
+      if (poolCache) {
         sandbox.verbose() && console.info("[pool] reuse " + uniqueIndex);
-        pool = CachePoolConnections[uniqueIndex].pool
-        clearTimeout(CachePoolConnections[uniqueIndex].timeout);
-        //设置为null，防止内存泄漏
-        CachePoolConnections[uniqueIndex].timeout = null;
-        CachePoolConnections[uniqueIndex].timeout = setPoolEndTimeout(uniqueIndex)
+        pool = poolCache.pool
+        clearTimeout(poolCache.timeout);
+        //destroy
+        poolCache.timeout = null;
+        poolCache.timeout = setPoolEndTimeout(uniqueIndex)
+        sandbox.setCache(uniqueIndex, poolCache);
       } else {
         sandbox.verbose() && console.info("[pool] new " + uniqueIndex);
         pool = createPool(conf);
-        CachePoolConnections[uniqueIndex] = {
+        //destroy
+        conf = null;
+        sandbox.setCache(uniqueIndex, {
           pool: pool,
           timeout: setPoolEndTimeout(uniqueIndex)
-        }
+        });
       }
 
       const regParse = partitionPreviewSqlReg.exec(sql);
@@ -87,7 +100,7 @@ module.exports = {
       }
 
       for (_p in partitionMap) {
-        //块内定义 _sql，使下面的异步 _sql 为当前循环变量，否则异步有问题
+        //块内定义 _sql，使下面的异步 _sql 为当前循环变量，否则异步有问题，另外小心内存泄漏
         let _sql = `select ${fields} from ${tableName + '_' + _p} where ${partitionId} in (${partitionMap[_p].join(",")}) ${afterSql}`;
         sandbox.verbose() && console.log("[sql]", _sql);
         pool.getConnection(function (err, connection) {
@@ -105,6 +118,11 @@ module.exports = {
             partitionDoneCount++;
             if (partitionDoneCount >= partitionCount) {
               resole(partitionResult, fields)
+              //destroy
+              partitionDoneCount = null;
+              partitionResult = null;
+              partitionCount = null;
+              _sql = null;
             }
           });
         });
