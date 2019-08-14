@@ -2,6 +2,10 @@ let verbose = false;
 let cache = {};
 
 module.exports = {
+  cacheKeys: function () {
+    let keys = Object.keys(cache);
+    return keys;
+  },
   getCache: function (k) {
     return cache[k]
   },

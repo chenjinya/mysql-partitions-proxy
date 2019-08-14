@@ -45,17 +45,28 @@ http.createServer(async function (request, response) {
       exception(response, e.errno, e.code);
       console.error(e);
     }
-
+    heap.memery();
+  } else if (urlParse.pathname == '/memery') {
+    ok(response, process.memoryUsage())
+  } else if (urlParse.pathname == '/set-verbose') {
+    if (sandbox.verbose()) {
+      sandbox.setVerbose(false);
+    } else {
+      sandbox.setVerbose(true);
+    }
+    ok(response, {})
+  } else if (urlParse.pathname == '/cache-keys') {
+    ok(response, sandbox.cacheKeys())
   } else {
     notfound(response)
   }
-  heap.memery();
 
 }).listen(httpPort, '127.0.0.1');
 
 const ok = (res, data = null) => {
   res.writeHead(200, { 'Content-Type': 'text/json' });
   res.end(JSON.stringify({ "errno": 0, "errmsg": "ok", "data": data }));
+  res = null;
 }
 const error = (errno, errmsg) => {
   res.writeHead(200, { 'Content-Type': 'text/json' });
