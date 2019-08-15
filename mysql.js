@@ -108,7 +108,7 @@ module.exports = {
             console.error(err);
             reject(err);
           }
-          connection.query(_sql, function (err, rows, fields) {
+          connection.query({ sql: _sql, timeout: 2000 }, function (err, rows, fields) {
             connection.release()
             if (err) {
               console.error(err);
